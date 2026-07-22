@@ -1,0 +1,16 @@
+# Cloudflare Pages headers.
+
+# Never let the edge cache the report. Two reasons, both load-bearing:
+#  - a stale copy can outlive the deployment that removed it, so a payload
+#    published once stays reachable after it should be gone;
+#  - the phone must see today's signals, not yesterday's.
+/data/*
+  Cache-Control: no-store, max-age=0
+  X-Robots-Tag: noindex, nofollow
+
+# The shell is safe to cache but must revalidate, so a new build is picked up.
+/*
+  Cache-Control: no-cache
+  X-Robots-Tag: noindex, nofollow
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer

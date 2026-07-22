@@ -100,6 +100,9 @@ jobs:
           python tools/make_icons.py
           mkdir -p "$RUNNER_TEMP/site/data" "$RUNNER_TEMP/site/icons"
           cp web/index.html web/app.js web/styles.css web/sw.js web/manifest.json "$RUNNER_TEMP/site/"
+          # _headers stops the edge caching the report: a stale copy can
+          # outlive the deployment that removed it.
+          cp web/_headers "$RUNNER_TEMP/site/"
           cp web/icons/*.png "$RUNNER_TEMP/site/icons/"
 
           if [ -n "${{ secrets.DASHBOARD_PASSPHRASE }}" ]; then
