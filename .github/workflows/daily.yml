@@ -101,10 +101,37 @@ jobs:
           mkdir -p "$RUNNER_TEMP/site/data" "$RUNNER_TEMP/site/icons"
           cp web/index.html web/app.js web/styles.css web/sw.js web/manifest.json "$RUNNER_TEMP/site/"
           cp web/icons/*.png "$RUNNER_TEMP/site/icons/"
-          cp data/reports/latest.json "$RUNNER_TEMP/site/data/latest.json"
-          # Dated history, for later backtesting of the DCF leg.
-          find data/reports -name '20*.json' -exec cp {} "$RUNNER_TEMP/site/data/" \;
+
+          if [ -n "${{ secrets.DASHBOARD_PASSPHRASE }}" ]; then
+            # Encrypted mode: the host only ever holds ciphertext, so the URL
+            # can be public. The plaintext must NOT also be shipped.
+            pip install --quiet cryptography
+            DASHBOARD_PASSPHRASE='${{ secrets.DASHBOARD_PASSPHRASE }}' \
+              python tools/encrypt_report.py \
+                --in data/reports/latest.json \
+                --out "$RUNNER_TEMP/site/data/latest.enc"
+            echo "mode: encrypted"
+          else
+            # Plaintext mode: only safe when the host enforces access control.
+            cp data/reports/latest.json "$RUNNER_TEMP/site/data/latest.json"
+            find data/reports -name '20*.json' -exec cp {} "$RUNNER_TEMP/site/data/" \;
+            echo "::warning::DASHBOARD_PASSPHRASE not set — publishing readable JSON. Only safe behind Cloudflare Access."
+          fi
           ls -la "$RUNNER_TEMP/site" "$RUNNER_TEMP/site/data"
+
+      - name: Verify the payload matches the chosen mode
+        run: |
+          if [ -n "${{ secrets.DASHBOARD_PASSPHRASE }}" ]; then
+            if ls "$RUNNER_TEMP"/site/data/*.json >/dev/null 2>&1; then
+              echo "::error::readable JSON present in encrypted mode — refusing to deploy"
+              exit 1
+            fi
+            if grep -qE 'portfolio_value|cost_basis_per_share' "$RUNNER_TEMP/site/data/latest.enc"; then
+              echo "::error::plaintext found inside the encrypted payload"
+              exit 1
+            fi
+            echo "encrypted payload verified: no readable report in the upload"
+          fi
 
       - name: Deploy to Cloudflare Pages
         # Direct Upload: the built site goes straight from the runner to

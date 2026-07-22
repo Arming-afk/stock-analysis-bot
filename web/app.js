@@ -8,11 +8,61 @@ const money = (v) =>
 const pct = (v, digits = 1) =>
   v == null ? "—" : `${v >= 0 ? "+" : ""}${(v * 100).toFixed(digits)}%`;
 
-/* Two deployment shapes are supported:
-   - FastAPI serving the app  -> /api/report/latest
-   - static hosting (Pages)   -> ./data/latest.json committed by the scheduler
-   Try the API first, fall back to the file, then to the cached copy. */
+/* Three deployment shapes are supported, tried in order:
+     - FastAPI serving the app -> ./api/report/latest
+     - static host, plaintext  -> ./data/latest.json
+     - static host, encrypted  -> ./data/latest.enc  (public URL, private data)
+   The encrypted form is decrypted here in the browser, so the host never holds
+   anything readable and access does not depend on it enforcing a policy. */
 const SOURCES = ["./api/report/latest", "./data/latest.json"];
+const ENCRYPTED_SOURCE = "./data/latest.enc";
+const PASS_KEY = "dashboardPassphrase";
+
+const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+/* Mirrors tools/encrypt_report.py:
+   PBKDF2-HMAC-SHA256 -> AES-256-GCM, tag appended to the ciphertext. */
+async function decryptEnvelope(env, passphrase) {
+  const enc = new TextEncoder();
+  const material = await crypto.subtle.importKey(
+    "raw", enc.encode(passphrase), "PBKDF2", false, ["deriveKey"]
+  );
+  const key = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: b64(env.salt), iterations: env.iterations, hash: "SHA-256" },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"]
+  );
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: b64(env.iv) }, key, b64(env.ct)
+  );
+  return JSON.parse(new TextDecoder().decode(plain));
+}
+
+async function fetchEncrypted() {
+  const res = await fetch(ENCRYPTED_SOURCE, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${ENCRYPTED_SOURCE} -> ${res.status}`);
+  const envelope = await res.json();
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    let passphrase = localStorage.getItem(PASS_KEY);
+    if (!passphrase) {
+      passphrase = prompt("Passphrase to unlock the dashboard:");
+      if (!passphrase) throw new Error("cancelled");
+    }
+    try {
+      const report = await decryptEnvelope(envelope, passphrase);
+      localStorage.setItem(PASS_KEY, passphrase); // only after it verifies
+      return report;
+    } catch (_) {
+      // AES-GCM authentication failed: wrong passphrase, or tampered payload.
+      localStorage.removeItem(PASS_KEY);
+      alert("Wrong passphrase.");
+    }
+  }
+  throw new Error("could not decrypt");
+}
 
 async function fetchReport() {
   let lastError;
@@ -25,7 +75,11 @@ async function fetchReport() {
       lastError = err;
     }
   }
-  throw lastError || new Error("no report source reachable");
+  try {
+    return await fetchEncrypted();
+  } catch (err) {
+    throw lastError || err;
+  }
 }
 
 async function load() {
