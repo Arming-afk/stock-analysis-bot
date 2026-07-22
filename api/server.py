@@ -14,7 +14,7 @@ from pathlib import Path
 
 from fastapi import Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -122,23 +122,7 @@ def unsubscribe(payload: dict = Body(...)) -> dict:
 
 
 # --- PWA shell ------------------------------------------------------------
-# The service worker and manifest must be served from the root so the worker's
-# scope covers the whole app.
-
-
-@app.get("/sw.js")
-def service_worker() -> FileResponse:
-    return FileResponse(WEB_DIR / "sw.js", media_type="application/javascript")
-
-
-@app.get("/manifest.json")
-def manifest() -> FileResponse:
-    return FileResponse(WEB_DIR / "manifest.json", media_type="application/manifest+json")
-
-
-@app.get("/")
-def index() -> FileResponse:
-    return FileResponse(WEB_DIR / "index.html")
-
-
-app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+# Mounted at the root, after the API routes, so every asset sits at the same
+# relative path it does on static hosting. This also puts sw.js at the root,
+# which it needs for its scope to cover the whole app.
+app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")

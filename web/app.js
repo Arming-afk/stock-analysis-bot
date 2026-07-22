@@ -8,11 +8,29 @@ const money = (v) =>
 const pct = (v, digits = 1) =>
   v == null ? "—" : `${v >= 0 ? "+" : ""}${(v * 100).toFixed(digits)}%`;
 
+/* Two deployment shapes are supported:
+   - FastAPI serving the app  -> /api/report/latest
+   - static hosting (Pages)   -> ./data/latest.json committed by the scheduler
+   Try the API first, fall back to the file, then to the cached copy. */
+const SOURCES = ["./api/report/latest", "./data/latest.json"];
+
+async function fetchReport() {
+  let lastError;
+  for (const url of SOURCES) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) return await res.json();
+      lastError = new Error(`${url} -> ${res.status}`);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error("no report source reachable");
+}
+
 async function load() {
   try {
-    const res = await fetch("/api/report/latest", { cache: "no-store" });
-    if (!res.ok) throw new Error(await res.text());
-    state.report = await res.json();
+    state.report = await fetchReport();
     localStorage.setItem("lastReport", JSON.stringify(state.report));
   } catch (err) {
     // Offline or no run yet — fall back to whatever the last successful load was.
@@ -151,13 +169,21 @@ function urlBase64ToUint8Array(base64) {
 async function initPush() {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
-  const reg = await navigator.serviceWorker.register("/sw.js");
+  const reg = await navigator.serviceWorker.register("./sw.js");
   const existing = await reg.pushManager.getSubscription();
   const btn = $("#push-btn");
 
-  const keyRes = await fetch("/api/push/public-key");
-  const { key } = await keyRes.json();
-  if (!key) return; // VAPID not configured on the server
+  // Static hosting has no API. Subscribing needs a server to POST to, so the
+  // button only appears when one is reachable — on Pages you register once
+  // against a local server and store the subscription as a repo secret.
+  let key = "";
+  try {
+    const keyRes = await fetch("./api/push/public-key");
+    if (keyRes.ok) ({ key } = await keyRes.json());
+  } catch (_) {
+    return;
+  }
+  if (!key) return; // VAPID not configured, or no API in this deployment
 
   if (existing) {
     btn.hidden = true;
@@ -175,7 +201,7 @@ async function initPush() {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(key),
     });
-    await fetch("/api/push/subscribe", {
+    await fetch("./api/push/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(sub.toJSON()),

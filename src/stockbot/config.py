@@ -27,6 +27,7 @@ class ConfigError(RuntimeError):
 @dataclass
 class Secrets:
     fireworks_api_key: str | None = None
+    push_subscription_json: str | None = None
     webull_app_key: str | None = None
     webull_app_secret: str | None = None
     webull_account_id: str | None = None
@@ -95,6 +96,7 @@ def load_secrets(env_path: Path | None = None) -> Secrets:
     load_dotenv(env_path or (PROJECT_ROOT / ".env"))
     return Secrets(
         fireworks_api_key=os.getenv("FIREWORKS_API_KEY") or None,
+        push_subscription_json=os.getenv("PUSH_SUBSCRIPTION_JSON") or None,
         webull_app_key=os.getenv("WEBULL_APP_KEY") or None,
         webull_app_secret=os.getenv("WEBULL_APP_SECRET") or None,
         webull_account_id=os.getenv("WEBULL_ACCOUNT_ID") or None,
@@ -106,6 +108,31 @@ def load_secrets(env_path: Path | None = None) -> Secrets:
     )
 
 
+#: Env vars that override config.yaml, so a scheduler (GitHub Actions, cron)
+#: can redirect output or flip the phase without editing the committed file.
+_ENV_OVERRIDES: dict[str, tuple[tuple[str, ...], type]] = {
+    "STOCKBOT_DB_PATH": (("output", "db_path"), str),
+    "STOCKBOT_REPORT_DIR": (("output", "report_dir"), str),
+    "STOCKBOT_PHASE": (("phase",), int),
+}
+
+
+def _apply_env_overrides(data: dict[str, Any]) -> None:
+    for env_name, (path, caster) in _ENV_OVERRIDES.items():
+        raw = os.getenv(env_name)
+        if not raw:
+            continue
+        try:
+            value = caster(raw)
+        except ValueError as exc:
+            raise ConfigError(f"{env_name}={raw!r} is not a valid {caster.__name__}") from exc
+
+        node = data
+        for part in path[:-1]:
+            node = node.setdefault(part, {})
+        node[path[-1]] = value
+
+
 def load_config(path: Path | str | None = None) -> Config:
     cfg_path = Path(path) if path else DEFAULT_CONFIG_PATH
     if not cfg_path.exists():
@@ -114,7 +141,10 @@ def load_config(path: Path | str | None = None) -> Config:
         data = yaml.safe_load(fh) or {}
     if not isinstance(data, dict):
         raise ConfigError(f"config root must be a mapping: {cfg_path}")
-    return Config(data, load_secrets(), cfg_path)
+
+    secrets = load_secrets()
+    _apply_env_overrides(data)
+    return Config(data, secrets, cfg_path)
 
 
 def resolve_path(relative: str | Path) -> Path:

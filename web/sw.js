@@ -1,14 +1,15 @@
 /* Service worker: offline shell + push handling.
    Must be served from the site root so its scope covers the whole app. */
 
-const CACHE = "signals-v1";
+const CACHE = "signals-v2";
+// Relative to the worker's scope, so this works at "/" and at "/repo-name/".
 const SHELL = [
-  "/",
-  "/static/app.js",
-  "/static/styles.css",
-  "/manifest.json",
-  "/static/icons/icon-192.png",
-  "/static/icons/icon-512.png",
+  "./",
+  "./app.js",
+  "./styles.css",
+  "./manifest.json",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -34,7 +35,7 @@ self.addEventListener("fetch", (event) => {
 
   // Report data: always try the network first so a fresh run shows up
   // immediately; the client keeps its own copy in localStorage for offline.
-  if (url.pathname.startsWith("/api/")) {
+  if (url.pathname.includes("/api/") || url.pathname.endsWith("latest.json")) {
     event.respondWith(fetch(request).catch(() => caches.match(request)));
     return;
   }
@@ -56,8 +57,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: "/static/icons/icon-192.png",
-      badge: "/static/icons/icon-192.png",
+      icon: "./icons/icon-192.png",
+      badge: "./icons/icon-192.png",
       data: { url: data.url },
     })
   );

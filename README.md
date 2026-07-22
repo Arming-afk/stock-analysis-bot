@@ -253,6 +253,57 @@ something useful with no signal.
 
 The phone is a display and notification client. It never runs the analysis.
 
+### Option A — GitHub Actions (no machine of your own)
+
+[`.github/workflows/daily.yml`](.github/workflows/daily.yml) runs the analysis
+on GitHub's runners at 21:30 UTC on weekdays (17:30 EDT / 16:30 EST, after the
+US close), and can also be triggered by hand from the Actions tab.
+
+Runners are wiped after every job, so the workflow commits its output back to
+`docs/` — that directory is both the run history and a ready-to-serve static
+dashboard.
+
+**Secrets to add** (Settings → Secrets and variables → Actions):
+
+| Secret | Required | Purpose |
+|---|---|---|
+| `PORTFOLIO_JSON` | for holdings | the whole contents of `data/portfolio.json`, pasted in |
+| `FIREWORKS_API_KEY` | no | sentiment + written explanations |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_CONTACT` | for push | from `python tools/gen_vapid.py` |
+| `PUSH_SUBSCRIPTION_JSON` | for push | see below |
+| `WEBULL_APP_KEY` / `_SECRET` / `_ACCOUNT_ID` | no | live holdings instead of the secret above |
+
+Without `PORTFOLIO_JSON` the run still works — it analyzes the watchlist only
+and logs a warning. With Webull credentials present the workflow prefers the
+live account and falls back to the secret if that call fails.
+
+**Getting `PUSH_SUBSCRIPTION_JSON`.** A scheduled runner has no server for the
+phone to register against, so the subscription is handed in as a secret
+instead. Run the server locally once, install the PWA, tap *Enable alerts*,
+then read the row out of the local database:
+
+```bash
+python -c "import sqlite3,json;print(sqlite3.connect('data/stockbot.db').execute('select payload from push_subscriptions').fetchone()[0])"
+```
+
+Paste that JSON as the secret. Subscriptions from the database and from the
+secret are merged and deduplicated by endpoint, so both paths can coexist.
+
+**Things to know about Actions scheduling**
+
+- Scheduled runs are **best-effort**. GitHub delays them under load and skips
+  them outright during incidents. This is fine for a daily job; do not build
+  anything time-critical on it.
+- GitHub **disables scheduled workflows after 60 days of repository
+  inactivity**. The workflow's own commits normally keep it alive, but if runs
+  go quiet, check whether it was disabled.
+- Free tier gives 2,000 Actions minutes/month on private repos. A run takes
+  ~2–3 minutes, so a weekday schedule uses roughly 60 min/month.
+- The job summary on each run renders the full signal table — readable from the
+  GitHub mobile app without any dashboard at all.
+
+### Option B — your own machine
+
 **Windows Task Scheduler**
 
 ```powershell
@@ -266,6 +317,33 @@ schtasks /create /tn "StockBot Daily" /tr "python D:\Stock_Analysis_Bot\run_dail
 ```
 
 Run after the US close so the day's prices are settled.
+
+### Hosting the dashboard
+
+The PWA uses relative paths and tries two data sources in order — the API
+(`./api/report/latest`) and then a committed file (`./data/latest.json`). So the
+identical build works in three places:
+
+| Host | Setup | Note |
+|---|---|---|
+| FastAPI locally | `uvicorn api.server:app` | full API, push subscription works |
+| GitHub Pages | Settings → Pages → branch `main`, folder `/docs` | **needs a public repo, or a paid plan for private** |
+| Cloudflare Pages | connect the repo, output dir `docs` | free, works with a private repo |
+
+Static hosts serve the report read-only: the *Enable alerts* button hides
+itself when no API is reachable, which is why the subscription is captured
+locally once and stored as a secret.
+
+### Config overrides for schedulers
+
+These environment variables override `config.yaml`, so a scheduler can redirect
+output without editing the committed file:
+
+| Variable | Overrides |
+|---|---|
+| `STOCKBOT_DB_PATH` | `output.db_path` |
+| `STOCKBOT_REPORT_DIR` | `output.report_dir` |
+| `STOCKBOT_PHASE` | `phase` |
 
 ---
 

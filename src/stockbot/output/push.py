@@ -18,6 +18,35 @@ from ..logging_setup import get_logger
 log = get_logger("output.push")
 
 
+def collect_subscriptions(cfg: Config, stored: list[dict]) -> list[dict]:
+    """Merge DB-registered subscriptions with one supplied via the environment.
+
+    A scheduled run on a throwaway runner has no server for the phone to
+    register against, so the subscription JSON can be handed in as a secret
+    instead. Deduplicated by endpoint, so both paths can coexist.
+    """
+    subscriptions = list(stored)
+    raw = cfg.secrets.push_subscription_json
+    if not raw:
+        return subscriptions
+
+    try:
+        from_env = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        log.error("PUSH_SUBSCRIPTION_JSON is not valid JSON (%s) — ignoring", exc)
+        return subscriptions
+
+    for sub in from_env if isinstance(from_env, list) else [from_env]:
+        if not isinstance(sub, dict) or not sub.get("endpoint"):
+            log.error("PUSH_SUBSCRIPTION_JSON entry has no endpoint — ignoring")
+            continue
+        if any(s.get("endpoint") == sub["endpoint"] for s in subscriptions):
+            continue
+        subscriptions.append(sub)
+
+    return subscriptions
+
+
 def send_push(cfg: Config, subscriptions: list[dict], title: str, body: str, url: str = "/") -> tuple[int, list[str]]:
     """Returns (delivered_count, dead_endpoints)."""
     if not cfg.secrets.has_vapid:

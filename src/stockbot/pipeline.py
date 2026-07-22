@@ -34,7 +34,7 @@ from .models import (
 )
 from .news.fetch import fetch_articles
 from .news.sentiment import analyze_news
-from .output.push import send_push
+from .output.push import collect_subscriptions, send_push
 from .output.report import push_summary, write_report_files
 from .storage.db import Database
 from .valuation.dcf import value_ticker
@@ -218,7 +218,8 @@ def run_daily(
 
         if cfg.get("output.push_enabled", True) and not skip_push:
             title, body = push_summary(report)
-            _, dead = send_push(cfg, db.subscriptions(), title, body)
+            subscriptions = collect_subscriptions(cfg, db.subscriptions())
+            _, dead = send_push(cfg, subscriptions, title, body)
             for endpoint in dead:
                 db.delete_subscription(endpoint)
     finally:

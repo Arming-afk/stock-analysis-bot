@@ -13,6 +13,9 @@ data/logs/
 *.db
 *.sqlite3
 
+# ...except the published run history, which the scheduled workflow commits.
+!docs/data/*.db
+
 # Build artifacts (regenerate with: python tools/make_icons.py)
 web/icons/*.png
 
