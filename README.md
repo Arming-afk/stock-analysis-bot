@@ -345,29 +345,41 @@ committed to a public repository is public forever — forkable and archived.
 
 So the two are kept in separate repositories:
 
-| | This repo (public) | Data repo (private) |
-|---|---|---|
-| Code, tests, workflow | yes | no |
-| Portfolio, positions, P/L | **never** | yes |
-| Dashboard HTML/JS | source | deployed copy |
-| Who can read it | anyone | you, via Cloudflare Access |
+The report never enters a git repository at all. The run builds the dashboard
+outside the checkout and uploads it straight to Cloudflare Pages
+([Direct Upload](https://developers.cloudflare.com/pages/get-started/direct-upload/)),
+so there is no history holding the portfolio anywhere — not even a private one,
+where it would sit permanently and be exposed by any later visibility or access
+mistake.
 
-The scheduled run writes the full report to `data/reports/` on the runner
-(gitignored), then pushes it over SSH to the private repo using a deploy key
-held in `DATA_DEPLOY_KEY`. The public checkout is asserted clean afterwards —
-if anything wrote a portfolio-derived file there, the run fails rather than
-committing it.
+```
+runner: compute → build outside the repo → wrangler upload → Cloudflare Pages
+                                                                    ↓
+public repo: code only, asserted clean            Cloudflare Access (email OTP)
+```
 
-**Setup:** create a private repo, add a write-enabled deploy key, and set two
-secrets on this repo — `DATA_REPO` (`owner/name`) and `DATA_DEPLOY_KEY` (the
-private half). Without them the run still completes and simply skips the
-dashboard update.
+**Setup**
 
-Then connect [Cloudflare Pages](https://developers.cloudflare.com/pages/) to
-the private repo (no build command, output directory `/`) and put a
-[Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/)
-policy in front of it — one-time email codes are enough for a single user, and
-both are free.
+1. Cloudflare dashboard → **Workers & Pages → Create → Pages → Upload assets**.
+   Name the project (default expected here: `stock-signals`), create it, ignore
+   the upload prompt — the workflow does the uploading.
+2. **My Profile → API Tokens → Create Token → Edit Cloudflare Workers**. Copy
+   the token, and grab the Account ID from the Workers & Pages sidebar.
+3. Set both as repository secrets:
+   ```bash
+   gh secret set CLOUDFLARE_API_TOKEN   # paste at the prompt
+   gh secret set CLOUDFLARE_ACCOUNT_ID
+   ```
+   Using a different project name? `gh variable set CLOUDFLARE_PROJECT --body "your-name"`.
+4. Put [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/)
+   in front of it: **Zero Trust → Access → Applications → Add → Self-hosted**,
+   subdomain = the project name, domain = `pages.dev`, **wildcard removed**, and
+   a policy allowing your email. One-time PIN is enough for a single user.
+   Without this the URL is public to anyone who knows it.
+
+Without the two secrets the run still completes and simply skips the dashboard
+update. The public checkout is asserted clean afterwards either way — if
+anything wrote a portfolio-derived file there, the run fails.
 
 **Publishing publicly instead.** If you would rather have a public dashboard,
 [`tools/publish.py`](tools/publish.py) rebuilds the report from an explicit

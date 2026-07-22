@@ -106,37 +106,27 @@ jobs:
           find data/reports -name '20*.json' -exec cp {} "$RUNNER_TEMP/site/data/" \;
           ls -la "$RUNNER_TEMP/site" "$RUNNER_TEMP/site/data"
 
-      - name: Push to the private data repo
+      - name: Deploy to Cloudflare Pages
+        # Direct Upload: the built site goes straight from the runner to
+        # Cloudflare. Nothing is committed anywhere, so the report never enters
+        # a git history at all — not even a private one, where it would sit
+        # permanently and be exposed by any later visibility or access mistake.
         env:
-          DATA_REPO: ${{ secrets.DATA_REPO }}
-          DEPLOY_KEY: ${{ secrets.DATA_DEPLOY_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PROJECT: ${{ vars.CLOUDFLARE_PROJECT || 'stock-signals' }}
         run: |
-          if [ -z "$DEPLOY_KEY" ] || [ -z "$DATA_REPO" ]; then
-            echo "::warning::DATA_REPO / DATA_DEPLOY_KEY not set — dashboard not updated"
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set — dashboard not updated"
             exit 0
           fi
 
-          mkdir -p ~/.ssh
-          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          # Idempotent: succeeds on first run, harmless afterwards.
+          npx --yes wrangler@3 pages project create "$PROJECT" \
+            --production-branch=main 2>/dev/null || echo "project already exists"
 
-          git clone --depth 1 "git@github.com:${DATA_REPO}.git" "$RUNNER_TEMP/data-repo"
-          # Replace the payload wholesale so removed tickers do not linger,
-          # but keep the repo's own README and git metadata.
-          rm -rf "$RUNNER_TEMP/data-repo/data" "$RUNNER_TEMP/data-repo/icons"
-          cp -r "$RUNNER_TEMP/site/." "$RUNNER_TEMP/data-repo/"
-
-          cd "$RUNNER_TEMP/data-repo"
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --staged --quiet; then
-            echo "no changes to publish"
-            exit 0
-          fi
-          git commit -m "Daily run $(date -u +%Y-%m-%d)"
-          git push
+          npx --yes wrangler@3 pages deploy "$RUNNER_TEMP/site" \
+            --project-name="$PROJECT" --branch=main --commit-dirty=true
 
       - name: Confirm the public repo stayed clean
         # The failure mode here is irreversible, so assert it rather than
