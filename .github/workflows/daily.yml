@@ -72,12 +72,12 @@ jobs:
           VAPID_CONTACT: ${{ secrets.VAPID_CONTACT }}
           PUSH_SUBSCRIPTION_JSON: ${{ secrets.PUSH_SUBSCRIPTION_JSON }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
-          # Published output lives in docs/ so it is committable and can be
-          # served directly by GitHub / Cloudflare Pages.
-          STOCKBOT_DB_PATH: docs/data/stockbot.db
-          STOCKBOT_REPORT_DIR: docs/data
+          # The full report — positions, cost basis, portfolio value — stays in
+          # data/, which is gitignored and dies with the runner. Only the
+          # redacted copy produced by the next step reaches docs/.
+          STOCKBOT_DB_PATH: data/stockbot.db
+          STOCKBOT_REPORT_DIR: data/reports
         run: |
-          mkdir -p docs/data
           # No --local-portfolio here on purpose: load_portfolio() tries Webull
           # when credentials exist and falls back to data/portfolio.json when
           # they do not, which is exactly the behaviour wanted on CI.
@@ -90,6 +90,15 @@ jobs:
           echo "run_daily.py $ARGS"
           python run_daily.py $ARGS
 
+      - name: Publish the redacted report
+        # THIS REPOSITORY IS PUBLIC. Everything committed below is world
+        # readable, so the report is rebuilt from a whitelist that drops every
+        # quantity, dollar amount and portfolio weight. Do not add --no-redact
+        # here unless the repository is private.
+        run: |
+          mkdir -p docs/data
+          python tools/publish.py --in data/reports/latest.json --out docs/data
+
       - name: Build the static dashboard
         run: |
           python tools/make_icons.py
@@ -97,6 +106,16 @@ jobs:
           mkdir -p docs/icons && cp web/icons/*.png docs/icons/
           # Pages otherwise runs the tree through Jekyll and drops _-prefixed paths.
           touch docs/.nojekyll
+
+      - name: Verify nothing sensitive is about to be committed
+        # Belt and braces: a grep over the actual bytes heading for a public
+        # repo, so a regression in publish.py fails the run instead of leaking.
+        run: |
+          if grep -rlE '"(quantity|cost_basis_per_share|unrealized_pnl|total_cost|market_value|portfolio_value|ticker_weight|sector_weight)"' docs/data/; then
+            echo "::error::position data found in docs/ — refusing to publish"
+            exit 1
+          fi
+          echo "docs/ is clean"
 
       - name: Commit results
         run: |
@@ -117,9 +136,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: report-${{ github.run_number }}
-          path: |
-            docs/data/*.json
-            docs/data/*.md
+          # Only the redacted copy. Artifacts on a public repository are
+          # downloadable by anyone, so the full report is never uploaded.
+          path: docs/data/*.json
           retention-days: 30
           if-no-files-found: warn
 
@@ -133,7 +152,9 @@ jobs:
           order = {"BUY": 0, "SELL": 1, "WATCH": 2, "HOLD": 3}
           icon = {"BUY": "🟢", "SELL": "🔴", "WATCH": "🟡", "HOLD": "⚪"}
           print(f"## Signals — {r['run_date']}\n")
-          print(f"Portfolio ${r['portfolio_value']:,.2f} · cash ${r['cash']:,.2f} · phase {r['phase']}\n")
+          # Job summaries are public on a public repo, so this reads the
+          # redacted file and never prints a total.
+          print(f"Phase {r['phase']} · {len(r['tickers'])} ticker(s) · amounts hidden\n")
           print("| | Ticker | Price | Fair value | Gap | Rule |")
           print("|---|---|--:|--:|--:|---|")
           for t in sorted(r["tickers"], key=lambda t: (order.get(t["signal"], 9), t["ticker"])):

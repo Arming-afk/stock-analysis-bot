@@ -13,8 +13,10 @@ data/logs/
 *.db
 *.sqlite3
 
-# ...except the published run history, which the scheduled workflow commits.
-!docs/data/*.db
+# The published dashboard. Only ever the REDACTED report — tools/publish.py
+# builds it from a whitelist. The full report stays in data/ and is never
+# committed, because this repository is public.
+!docs/
 
 # Build artifacts (regenerate with: python tools/make_icons.py)
 web/icons/*.png

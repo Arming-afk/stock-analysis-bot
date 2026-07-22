@@ -48,11 +48,20 @@ async function load() {
 
 function renderHeader() {
   const r = state.report;
-  const stale = $("#meta").dataset.stale ? " · cached" : "";
   const when = new Date(r.generated_at);
-  $("#meta").textContent =
-    `${r.run_date} · updated ${when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` +
-    ` · portfolio ${money(r.portfolio_value)} · cash ${money(r.cash)} · phase ${r.phase}${stale}`;
+  const bits = [
+    r.run_date,
+    `updated ${when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+  ];
+  // A redacted (publicly published) report omits the totals entirely rather
+  // than sending zeros, so hide the row instead of rendering a fake "$0.00".
+  if (r.portfolio_value != null) bits.push(`portfolio ${money(r.portfolio_value)}`);
+  if (r.cash != null) bits.push(`cash ${money(r.cash)}`);
+  bits.push(`phase ${r.phase}`);
+  if (r.redacted) bits.push("amounts hidden");
+  if ($("#meta").dataset.stale) bits.push("cached");
+
+  $("#meta").textContent = bits.join(" · ");
 
   const counts = { BUY: 0, SELL: 0, WATCH: 0, HOLD: 0 };
   r.tickers.forEach((t) => (counts[t.signal] = (counts[t.signal] || 0) + 1));
