@@ -90,71 +90,80 @@ jobs:
           echo "run_daily.py $ARGS"
           python run_daily.py $ARGS
 
-      - name: Publish the redacted report
-        # THIS REPOSITORY IS PUBLIC. Everything committed below is world
-        # readable, so the report is rebuilt from a whitelist that drops every
-        # quantity, dollar amount and portfolio weight. Do not add --no-redact
-        # here unless the repository is private.
-        run: |
-          mkdir -p docs/data
-          python tools/publish.py --in data/reports/latest.json --out docs/data
-
-      - name: Build the static dashboard
+      # THIS REPOSITORY IS PUBLIC. Nothing derived from the portfolio is ever
+      # committed here. The full report is pushed to a separate PRIVATE repo,
+      # which Cloudflare Pages serves behind Cloudflare Access.
+      - name: Build the dashboard and full report
         run: |
           python tools/make_icons.py
-          cp web/index.html web/app.js web/styles.css web/sw.js web/manifest.json docs/
-          mkdir -p docs/icons && cp web/icons/*.png docs/icons/
-          # Pages otherwise runs the tree through Jekyll and drops _-prefixed paths.
-          touch docs/.nojekyll
+          mkdir -p site/data
+          cp web/index.html web/app.js web/styles.css web/sw.js web/manifest.json site/
+          mkdir -p site/icons && cp web/icons/*.png site/icons/
+          cp data/reports/latest.json site/data/latest.json
+          # Dated history, for later backtesting of the DCF leg.
+          find data/reports -name '20*.json' -exec cp {} site/data/ \;
+          ls -la site site/data
 
-      - name: Verify nothing sensitive is about to be committed
-        # Belt and braces: a grep over the actual bytes heading for a public
-        # repo, so a regression in publish.py fails the run instead of leaking.
+      - name: Push to the private data repo
+        env:
+          DATA_REPO: ${{ secrets.DATA_REPO }}
+          DEPLOY_KEY: ${{ secrets.DATA_DEPLOY_KEY }}
         run: |
-          if grep -rlE '"(quantity|cost_basis_per_share|unrealized_pnl|total_cost|market_value|portfolio_value|ticker_weight|sector_weight)"' docs/data/; then
-            echo "::error::position data found in docs/ — refusing to publish"
-            exit 1
+          if [ -z "$DEPLOY_KEY" ] || [ -z "$DATA_REPO" ]; then
+            echo "::warning::DATA_REPO / DATA_DEPLOY_KEY not set — dashboard not updated"
+            exit 0
           fi
-          echo "docs/ is clean"
 
-      - name: Commit results
-        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+
+          git clone --depth 1 "git@github.com:${DATA_REPO}.git" /tmp/data-repo
+          # Replace the payload wholesale so removed tickers do not linger,
+          # but keep the repo's own README and git metadata.
+          rm -rf /tmp/data-repo/data /tmp/data-repo/icons
+          cp -r site/. /tmp/data-repo/
+
+          cd /tmp/data-repo
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f docs/
+          git add -A
           if git diff --staged --quiet; then
-            echo "no changes to commit"
+            echo "no changes to publish"
             exit 0
           fi
           git commit -m "Daily run $(date -u +%Y-%m-%d)"
-          # Another run may have landed while this one was working.
-          git pull --rebase --autostash origin ${{ github.ref_name }}
           git push
 
-      - name: Upload report as artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: report-${{ github.run_number }}
-          # Only the redacted copy. Artifacts on a public repository are
-          # downloadable by anyone, so the full report is never uploaded.
-          path: docs/data/*.json
-          retention-days: 30
-          if-no-files-found: warn
+      - name: Confirm the public repo stayed clean
+        # The failure mode here is irreversible, so assert it rather than
+        # assuming the steps above did the right thing.
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::the public checkout has uncommitted changes — something wrote here"
+            git status --porcelain
+            exit 1
+          fi
+          if [ -d docs ]; then
+            echo "::error::docs/ exists in the public repo — portfolio data may be exposed"
+            exit 1
+          fi
+          echo "public repo is clean: no portfolio-derived files"
 
       - name: Job summary
         if: always()
+        # Job summaries on a public repo are world readable. This prints the
+        # signal table only — never a total, a quantity or a P/L.
         run: |
-          if [ -f docs/data/latest.json ]; then
+          if [ -f data/reports/latest.json ]; then
             python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json, pathlib
-          r = json.loads(pathlib.Path("docs/data/latest.json").read_text(encoding="utf-8"))
+          r = json.loads(pathlib.Path("data/reports/latest.json").read_text(encoding="utf-8"))
           order = {"BUY": 0, "SELL": 1, "WATCH": 2, "HOLD": 3}
           icon = {"BUY": "🟢", "SELL": "🔴", "WATCH": "🟡", "HOLD": "⚪"}
           print(f"## Signals — {r['run_date']}\n")
-          # Job summaries are public on a public repo, so this reads the
-          # redacted file and never prints a total.
-          print(f"Phase {r['phase']} · {len(r['tickers'])} ticker(s) · amounts hidden\n")
+          print(f"Phase {r['phase']} · {len(r['tickers'])} ticker(s) · amounts withheld\n")
           print("| | Ticker | Price | Fair value | Gap | Rule |")
           print("|---|---|--:|--:|--:|---|")
           for t in sorted(r["tickers"], key=lambda t: (order.get(t["signal"], 9), t["ticker"])):
