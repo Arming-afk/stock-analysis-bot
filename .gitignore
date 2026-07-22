@@ -1,0 +1,27 @@
+# Secrets — never commit
+.env
+
+# Personal data
+data/portfolio.json
+!data/portfolio.example.json
+data/fixtures/market_data.json
+!data/fixtures/market_data.example.json
+
+# Generated output
+data/reports/
+data/logs/
+*.db
+*.sqlite3
+
+# Build artifacts (regenerate with: python tools/make_icons.py)
+web/icons/*.png
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+build/
+dist/

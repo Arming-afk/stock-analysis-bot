@@ -1,0 +1,35 @@
+{
+  "_comment": "Copy to data/portfolio.json. Used when Webull credentials are absent, and for --offline runs.",
+  "as_of": "2026-07-22",
+  "cash": 15000.0,
+  "holdings": [
+    {
+      "ticker": "MSFT",
+      "quantity": 40,
+      "cost_basis_per_share": 310.00,
+      "acquired_date": "2023-02-14",
+      "sector": "Technology"
+    },
+    {
+      "ticker": "GOOGL",
+      "quantity": 100,
+      "cost_basis_per_share": 96.50,
+      "acquired_date": "2023-05-02",
+      "sector": "Technology"
+    },
+    {
+      "ticker": "NVDA",
+      "quantity": 50,
+      "cost_basis_per_share": 118.00,
+      "acquired_date": "2026-04-30",
+      "sector": "Technology"
+    },
+    {
+      "ticker": "KO",
+      "quantity": 200,
+      "cost_basis_per_share": 54.20,
+      "acquired_date": "2021-11-08",
+      "sector": "Consumer Defensive"
+    }
+  ]
+}

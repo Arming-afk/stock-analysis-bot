@@ -1,0 +1,102 @@
+# Every threshold the deterministic layer uses lives here.
+# Nothing in this file is decided by an LLM at runtime.
+
+phase: 0            # 0 = no confidence score (ship + observe). 1 = confidence score on.
+
+watchlist:
+  # Phase 0: static, user-managed.
+  - MSFT
+  - GOOGL
+  - NVDA
+  - JNJ
+  - KO
+  - ASML
+
+# --- Section 2: DCF ---------------------------------------------------------
+dcf:
+  # Applicability gate. Runs BEFORE any valuation math.
+  gate:
+    lookback_years: 5           # trailing window to inspect
+    min_years: 3                # fewer datapoints than this -> not applicable
+    max_negative_years: 0       # any negative FCF year in the window -> not applicable
+    max_fcf_cv: 0.60            # coefficient of variation (stdev/|mean|) above this -> too volatile
+    require_positive_latest: true
+
+  projection_years: 5
+  base_fcf_method: latest       # latest | avg3
+  terminal_growth: 0.025
+
+  # Historical FCF CAGR is used as the growth input, clamped into this band so a
+  # single freak year cannot produce a runaway projection.
+  growth_clamp: [0.00, 0.12]
+
+  # WACC via CAPM, clamped. If inputs are missing we fall back to default_discount_rate
+  # and set wacc_estimated=true on the result.
+  risk_free_rate: 0.042
+  equity_risk_premium: 0.055
+  default_beta: 1.10
+  tax_rate: 0.21
+  default_cost_of_debt: 0.055
+  default_discount_rate: 0.090
+  discount_clamp: [0.06, 0.15]
+  min_spread_over_terminal: 0.005   # WACC must exceed terminal_growth by at least this
+
+  # Sensitivity grid for dcf_confidence (Phase 1). +/-1% and +/-2% per the spec.
+  sensitivity:
+    growth_deltas: [-0.02, -0.01, 0.0, 0.01, 0.02]
+    discount_deltas: [-0.02, -0.01, 0.0, 0.01, 0.02]
+    max_cv: 0.40                # fair-value dispersion at/above this scores 0 on that leg
+
+# --- Section 3: News --------------------------------------------------------
+news:
+  lookback_hours: 48
+  max_articles: 12
+  min_articles_for_available: 1   # below this -> news_available = false, LLM is NOT called
+  provider: rss                   # rss | newsapi | none
+  aggregate_deadband: 0.15        # |mean article score| below this aggregates to neutral
+
+# --- Section 4: Decision matrix --------------------------------------------
+decision:
+  # valuation_gap_pct = (fair_value - price) / price
+  large_undervalued: 0.25
+  mild_undervalued: 0.10
+  overvalued: -0.10
+  # aggregate sentiment score in [-1, 1]; |score| >= this is "strong"
+  strong_sentiment: 0.60
+  moderate_sentiment: 0.30
+
+# --- Section 5: Confidence (Phase 1) ---------------------------------------
+confidence:
+  weights:
+    dcf: 0.5
+    news: 0.3
+    agreement: 0.2
+  news_baseline_when_unavailable: 50.0   # explicit rule, never a silent default
+  target_source_count: 5
+  bands:
+    high: 80
+    medium: 50
+  force_watch_below: 50
+
+# --- Section 6: Risk check --------------------------------------------------
+risk:
+  max_ticker_pct: 0.15       # of total portfolio value (holdings + cash)
+  max_sector_pct: 0.35
+  long_term_holding_days: 365
+
+# --- Section 7/3: LLM -------------------------------------------------------
+llm:
+  base_url: https://api.fireworks.ai/inference/v1
+  sentiment_model: accounts/fireworks/models/llama-v3p3-70b-instruct
+  explanation_model: accounts/fireworks/models/deepseek-v3
+  timeout_seconds: 60
+  max_retries: 3
+  sentiment_temperature: 0.0     # classification must be as reproducible as possible
+  explanation_temperature: 0.3
+  explanation_max_tokens: 400
+
+# --- Section 8: Output ------------------------------------------------------
+output:
+  db_path: data/stockbot.db
+  report_dir: data/reports
+  push_enabled: true

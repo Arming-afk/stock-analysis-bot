@@ -1,0 +1,125 @@
+{
+  "_README": "SYNTHETIC data for offline runs and demos. Cash-flow figures are rounded, and the prices are chosen to exercise every branch of the decision matrix — they are NOT real quotes and must never be used for an actual decision. Copy to market_data.json to enable --offline.",
+
+  "MSFT": {
+    "price": 430.00,
+    "shares_outstanding": 7430000000,
+    "total_debt": 97000000000,
+    "cash_and_equivalents": 75000000000,
+    "beta": 0.90,
+    "market_cap": 3194900000000,
+    "sector": "Technology",
+    "fcf_history": [
+      {"fiscal_year": 2025, "operating_cash_flow": 118500000000, "capital_expenditure": 44400000000},
+      {"fiscal_year": 2024, "operating_cash_flow": 118500000000, "capital_expenditure": 59000000000},
+      {"fiscal_year": 2023, "operating_cash_flow": 87600000000, "capital_expenditure": 22500000000},
+      {"fiscal_year": 2022, "operating_cash_flow": 89000000000, "capital_expenditure": 32900000000},
+      {"fiscal_year": 2021, "operating_cash_flow": 76700000000, "capital_expenditure": 31500000000}
+    ]
+  },
+
+  "GOOGL": {
+    "_note": "Priced near the model's own fair value — exercises the near-fair -> HOLD path.",
+    "price": 85.00,
+    "shares_outstanding": 12200000000,
+    "total_debt": 28000000000,
+    "cash_and_equivalents": 95000000000,
+    "beta": 1.05,
+    "market_cap": 1037000000000,
+    "sector": "Technology",
+    "fcf_history": [
+      {"fiscal_year": 2025, "operating_cash_flow": 125300000000, "capital_expenditure": 52500000000},
+      {"fiscal_year": 2024, "operating_cash_flow": 101700000000, "capital_expenditure": 32300000000},
+      {"fiscal_year": 2023, "operating_cash_flow": 91500000000, "capital_expenditure": 31500000000},
+      {"fiscal_year": 2022, "operating_cash_flow": 91700000000, "capital_expenditure": 31500000000},
+      {"fiscal_year": 2021, "operating_cash_flow": 91600000000, "capital_expenditure": 24600000000}
+    ]
+  },
+
+  "NVDA": {
+    "_note": "Deliberately volatile FCF — trips the DCF-applicability gate.",
+    "price": 140.00,
+    "shares_outstanding": 24600000000,
+    "total_debt": 9700000000,
+    "cash_and_equivalents": 38500000000,
+    "beta": 1.75,
+    "market_cap": 3444000000000,
+    "sector": "Technology",
+    "fcf_history": [
+      {"fiscal_year": 2025, "operating_cash_flow": 64100000000, "capital_expenditure": 3400000000},
+      {"fiscal_year": 2024, "operating_cash_flow": 28100000000, "capital_expenditure": 1100000000},
+      {"fiscal_year": 2023, "operating_cash_flow": 5600000000, "capital_expenditure": 1800000000},
+      {"fiscal_year": 2022, "operating_cash_flow": 9100000000, "capital_expenditure": 1000000000},
+      {"fiscal_year": 2021, "operating_cash_flow": 5800000000, "capital_expenditure": 1500000000}
+    ]
+  },
+
+  "KO": {
+    "price": 62.00,
+    "shares_outstanding": 4310000000,
+    "total_debt": 42000000000,
+    "cash_and_equivalents": 15000000000,
+    "beta": 0.60,
+    "market_cap": 267220000000,
+    "sector": "Consumer Defensive",
+    "fcf_history": [
+      {"fiscal_year": 2025, "operating_cash_flow": 11400000000, "capital_expenditure": 1700000000},
+      {"fiscal_year": 2024, "operating_cash_flow": 11100000000, "capital_expenditure": 1600000000},
+      {"fiscal_year": 2023, "operating_cash_flow": 12200000000, "capital_expenditure": 1400000000},
+      {"fiscal_year": 2022, "operating_cash_flow": 10200000000, "capital_expenditure": 1500000000},
+      {"fiscal_year": 2021, "operating_cash_flow": 9800000000, "capital_expenditure": 1400000000}
+    ]
+  },
+
+  "JNJ": {
+    "price": 140.00,
+    "shares_outstanding": 2400000000,
+    "total_debt": 30000000000,
+    "cash_and_equivalents": 10000000000,
+    "beta": 0.60,
+    "market_cap": 336000000000,
+    "sector": "Healthcare",
+    "fcf_history": [
+      {"fiscal_year": 2025, "operating_cash_flow": 22000000000, "capital_expenditure": 4000000000},
+      {"fiscal_year": 2024, "operating_cash_flow": 20800000000, "capital_expenditure": 3800000000},
+      {"fiscal_year": 2023, "operating_cash_flow": 19800000000, "capital_expenditure": 3600000000},
+      {"fiscal_year": 2022, "operating_cash_flow": 18400000000, "capital_expenditure": 3400000000},
+      {"fiscal_year": 2021, "operating_cash_flow": 17200000000, "capital_expenditure": 3200000000}
+    ]
+  },
+
+  "ASML": {
+    "_note": "Price set low on purpose so this reads as a large discount — it exercises the BUY path and then the sector-concentration downgrade.",
+    "price": 320.00,
+    "shares_outstanding": 394000000,
+    "total_debt": 5500000000,
+    "cash_and_equivalents": 7000000000,
+    "beta": 1.40,
+    "market_cap": 126080000000,
+    "sector": "Technology",
+    "fcf_history": [
+      {"fiscal_year": 2025, "operating_cash_flow": 12100000000, "capital_expenditure": 1900000000},
+      {"fiscal_year": 2024, "operating_cash_flow": 10900000000, "capital_expenditure": 1800000000},
+      {"fiscal_year": 2023, "operating_cash_flow": 10000000000, "capital_expenditure": 1600000000},
+      {"fiscal_year": 2022, "operating_cash_flow": 8700000000, "capital_expenditure": 1400000000},
+      {"fiscal_year": 2021, "operating_cash_flow": 7600000000, "capital_expenditure": 1200000000}
+    ]
+  },
+
+  "TESTCO": {
+    "_note": "Synthetic. Negative free cash flow — trips the gate on the negative_fcf branch.",
+    "price": 22.50,
+    "shares_outstanding": 900000000,
+    "total_debt": 4000000000,
+    "cash_and_equivalents": 6000000000,
+    "beta": 2.10,
+    "market_cap": 20250000000,
+    "sector": "Consumer Cyclical",
+    "fcf_history": [
+      {"fiscal_year": 2025, "operating_cash_flow": -1800000000, "capital_expenditure": 1200000000},
+      {"fiscal_year": 2024, "operating_cash_flow": -4500000000, "capital_expenditure": 1000000000},
+      {"fiscal_year": 2023, "operating_cash_flow": -5000000000, "capital_expenditure": 1100000000},
+      {"fiscal_year": 2022, "operating_cash_flow": -5200000000, "capital_expenditure": 1400000000}
+    ]
+  }
+}

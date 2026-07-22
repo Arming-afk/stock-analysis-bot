@@ -1,0 +1,21 @@
+# Core pipeline
+requests>=2.31
+PyYAML>=6.0
+python-dotenv>=1.0
+
+# Market data / fundamentals (DCF inputs, prices)
+yfinance>=0.2.40
+
+# API + PWA hosting
+fastapi>=0.110
+uvicorn[standard]>=0.29
+
+# Web Push (VAPID) for iOS 16.4+ home-screen PWAs
+pywebpush>=2.0
+
+# Brokerage ingestion (optional — pipeline falls back to a local portfolio file)
+# webull-python-sdk-core>=0.1.5
+# webull-python-sdk-trade>=0.1.5
+
+# Dev
+pytest>=8.0

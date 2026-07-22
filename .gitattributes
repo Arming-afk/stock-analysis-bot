@@ -1,0 +1,4 @@
+# Normalize line endings so Windows/Linux checkouts don't produce noisy diffs.
+* text=auto eol=lf
+
+*.png binary

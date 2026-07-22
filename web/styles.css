@@ -1,0 +1,175 @@
+:root {
+  --bg: #0b1220;
+  --surface: #131c2e;
+  --surface-2: #1a2438;
+  --line: #26324a;
+  --text: #e8edf7;
+  --muted: #8e9bb5;
+  --buy: #34d399;
+  --sell: #f87171;
+  --watch: #fbbf24;
+  --hold: #94a3b8;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           calc(env(safe-area-inset-bottom) + 24px) env(safe-area-inset-left);
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.top { padding: 20px 16px 4px; }
+
+.top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1 {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.meta { color: var(--muted); font-size: 13px; margin: 6px 0 14px; }
+
+.ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ghost:active { background: var(--surface-2); }
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 8px;
+  text-align: center;
+}
+.stat b { display: block; font-size: 20px; font-weight: 650; line-height: 1.2; }
+.stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.stat.buy b { color: var(--buy); }
+.stat.sell b { color: var(--sell); }
+.stat.watch b { color: var(--watch); }
+.stat.hold b { color: var(--hold); }
+
+.filters {
+  display: flex;
+  gap: 8px;
+  padding: 14px 16px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.filters::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex: 0 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 7px 15px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.chip.active { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 600; }
+
+main { padding: 8px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 15px;
+}
+.card.BUY { border-left-color: var(--buy); }
+.card.SELL { border-left-color: var(--sell); }
+.card.WATCH { border-left-color: var(--watch); }
+.card.HOLD { border-left-color: var(--hold); }
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ticker { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+
+.tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.tag.BUY { background: rgba(52, 211, 153, 0.15); color: var(--buy); }
+.tag.SELL { background: rgba(248, 113, 113, 0.15); color: var(--sell); }
+.tag.WATCH { background: rgba(251, 191, 36, 0.15); color: var(--watch); }
+.tag.HOLD { background: rgba(148, 163, 184, 0.15); color: var(--hold); }
+
+.nums {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 10px 0;
+  font-variant-numeric: tabular-nums;
+}
+.num span { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.num b { font-size: 15px; font-weight: 600; }
+.pos { color: var(--buy); }
+.neg { color: var(--sell); }
+
+.rationale { color: #cbd5e8; font-size: 14px; margin: 8px 0 0; }
+
+.notes { margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.notes li {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 6px 9px;
+}
+.notes li.warn { color: var(--watch); }
+
+.conf-bar {
+  height: 4px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+.conf-bar i { display: block; height: 100%; border-radius: 999px; }
+
+footer { padding: 26px 16px 10px; color: var(--muted); font-size: 12px; text-align: center; }
+footer p { margin: 0 0 6px; }
+.tiny { font-size: 11px; opacity: 0.75; }
+
+.empty { color: var(--muted); text-align: center; padding: 40px 16px; }
