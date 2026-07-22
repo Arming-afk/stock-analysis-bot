@@ -94,15 +94,17 @@ jobs:
       # committed here. The full report is pushed to a separate PRIVATE repo,
       # which Cloudflare Pages serves behind Cloudflare Access.
       - name: Build the dashboard and full report
+        # Assembled OUTSIDE the repo checkout, so the clean-repo assertion
+        # below can stay absolute: any file under the workspace is a bug.
         run: |
           python tools/make_icons.py
-          mkdir -p site/data
-          cp web/index.html web/app.js web/styles.css web/sw.js web/manifest.json site/
-          mkdir -p site/icons && cp web/icons/*.png site/icons/
-          cp data/reports/latest.json site/data/latest.json
+          mkdir -p "$RUNNER_TEMP/site/data" "$RUNNER_TEMP/site/icons"
+          cp web/index.html web/app.js web/styles.css web/sw.js web/manifest.json "$RUNNER_TEMP/site/"
+          cp web/icons/*.png "$RUNNER_TEMP/site/icons/"
+          cp data/reports/latest.json "$RUNNER_TEMP/site/data/latest.json"
           # Dated history, for later backtesting of the DCF leg.
-          find data/reports -name '20*.json' -exec cp {} site/data/ \;
-          ls -la site site/data
+          find data/reports -name '20*.json' -exec cp {} "$RUNNER_TEMP/site/data/" \;
+          ls -la "$RUNNER_TEMP/site" "$RUNNER_TEMP/site/data"
 
       - name: Push to the private data repo
         env:
@@ -119,13 +121,13 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
 
-          git clone --depth 1 "git@github.com:${DATA_REPO}.git" /tmp/data-repo
+          git clone --depth 1 "git@github.com:${DATA_REPO}.git" "$RUNNER_TEMP/data-repo"
           # Replace the payload wholesale so removed tickers do not linger,
           # but keep the repo's own README and git metadata.
-          rm -rf /tmp/data-repo/data /tmp/data-repo/icons
-          cp -r site/. /tmp/data-repo/
+          rm -rf "$RUNNER_TEMP/data-repo/data" "$RUNNER_TEMP/data-repo/icons"
+          cp -r "$RUNNER_TEMP/site/." "$RUNNER_TEMP/data-repo/"
 
-          cd /tmp/data-repo
+          cd "$RUNNER_TEMP/data-repo"
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
