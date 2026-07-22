@@ -8,6 +8,10 @@ Delivered as an installable PWA plus a push notification.
 
 Built to the spec in [Daily.md](Daily.md).
 
+**Live dashboard:** https://arming-afk.github.io/stock-analysis-bot/
+Analysis runs on GitHub Actions each weekday after the US close. The published
+report is redacted — see [What gets published](#what-gets-published--this-repository-is-public).
+
 ---
 
 ## The design principle, and how it is enforced
@@ -235,10 +239,20 @@ valuation code.
 
 ## PWA on iPhone
 
-1. Serve over HTTPS (a reverse proxy with a certificate; localhost also works
-   for testing).
-2. Open in **Safari** → Share → **Add to Home Screen**.
-3. Launch from the home screen icon → tap **Enable alerts**.
+1. Open https://arming-afk.github.io/stock-analysis-bot/ in **Safari**
+   (self-hosting: serve over HTTPS; localhost also works for testing).
+2. Share → **Add to Home Screen**.
+3. Launch from the home screen icon.
+
+**Triggering a run from the phone.** iOS cannot run the analysis on-device —
+it has no reliable background scheduler, which is why the spec makes the phone
+a display client. But you can start a run by hand from the GitHub mobile app:
+*Actions → Daily run → Run workflow*. Results land on the dashboard a few
+minutes later.
+
+**Alerts** need the API to register a subscription, so a static host cannot do
+it. Run the server locally once, subscribe, and store the result as the
+`PUSH_SUBSCRIPTION_JSON` secret — see the Actions section.
 
 iOS 16.4+ supports Web Push, but **only** from a home-screen-installed PWA — a
 Safari tab will not receive notifications. No Apple Developer account or Xcode
